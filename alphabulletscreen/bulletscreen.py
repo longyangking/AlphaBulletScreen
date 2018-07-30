@@ -79,10 +79,12 @@ class PointCrowd:
                 return True
         return False
 
-class Engine:
+class GameEngine:
     def __init__(self, n_points, bounds, velocity_max, dt, 
         target_position, target_speed,
-        n_crowds=3, timestep_intervals=10):
+        n_crowds=3, timestep_intervals=10,
+        is_selfplay=False, is_computer=False
+        ):
 
         self.n_points = n_points
         self.bounds = bounds
@@ -122,7 +124,7 @@ class Engine:
     def get_state(self):
         pass 
 
-    def play(self, control_code):
+    def play(self, control_code=[1,0,0,0,0]):
         # Control Code:
         #   [1, 0, 0, 0, 0]: stay
         #   [0, 1, 0, 0, 0]: left
@@ -143,7 +145,9 @@ class Engine:
 
         diff_position = self.target_speed*self.dt*direction
         self.target_point.update_position(diff_position)
-        self.update()
+        flag = self.update()
+
+        return flag
 
     def update(self):
         n_crowds = len(self.pointcrowds)
@@ -168,3 +172,48 @@ class Engine:
         self.pointcrowds = pointcrowds
 
         return flag
+
+class BulletScreen:
+    '''
+    Bullet Screen Game for Human
+    '''
+    def __init__(self):
+        n_points=10
+        bounds = [0, 10, 0, 10] # bounds: [x_min, x_max, y_min, y_max]
+        velocity_max = 0.5 
+        dt = 0.1 
+        target_position = np.array([0,0]) 
+        target_speed = 0.1
+        n_crowds=3
+        timestep_intervals=10
+
+        self.gameengine = GameEngine(
+            n_points=n_points, 
+            bounds=bounds, 
+            velocity_max=velocity_max, 
+            dt=dt, 
+            target_position=target_position, 
+            target_speed=target_speed,
+            n_crowds=n_crowds, 
+            timestep_intervals=timestep_intervals
+        )
+
+    def start(self):
+        from ui import UI
+
+        self.gameengine.init()
+
+        sizeunit = 30
+        area = self.gameengine.getarea()
+        ui = UI(pressaction=self.player.setdirection, area=area, sizeunit=sizeunit)
+        ui.start()
+        
+        while self.gameengine.update():
+            ui.setarea(area=self.gameengine.getarea())
+
+        ui.gameend(self.gameengine.getscore())
+
+if __name__=='__main__':
+    # Just for debugging
+    bulletscreen = BulletScreen()
+    bulletscreen.start()
