@@ -51,8 +51,10 @@ class PointCrowd:
         latent_positions[3*n_points:,0] = np.random.random(n_points)*(x_max - x_min) + x_min
         latent_positions[3*n_points:,1] = y_max
 
+        list_latent_positions = range(4*n_points)
         for i in range(n_points):
-            position = np.random.choice(latent_positions)
+            index = np.random.choice(list_latent_positions)
+            position = latent_positions[index]
             direction = target_position - position
             direction = direction/np.sqrt(direction.dot(direction))
             velocity = velocity_max*np.random.random()*direction
@@ -104,6 +106,13 @@ class GameEngine:
         self.n_crowds = n_crowds
         self.timestep_intervals = timestep_intervals
         self.last_emit_timestep = 0
+
+    def get_area(self, n_grid=50):
+        area = np.zeros((n_grid, n_grid))
+
+        # Fill area
+
+        return area
 
     def init(self):
         self.last_emit_timestep = 0
@@ -198,14 +207,25 @@ class BulletScreen:
             timestep_intervals=timestep_intervals
         )
 
+    def pressaction(self, code):
+        # Control Code:
+        #   [1, 0, 0, 0, 0]: stay
+        #   [0, 1, 0, 0, 0]: left
+        #   [0, 0, 1, 0, 0]: right
+        #   [0, 0, 0, 1, 0]: up
+        #   [0, 0, 0, 0, 1]: down
+        control_code = np.zero(5)
+        control_code[code] = 1
+        self.gameengine.play(control_code=control_code)
+
     def start(self):
         from ui import UI
 
         self.gameengine.init()
 
         sizeunit = 30
-        area = self.gameengine.getarea()
-        ui = UI(pressaction=self.player.setdirection, area=area, sizeunit=sizeunit)
+        area = self.gameengine.get_area()
+        ui = UI(pressaction=self.pressaction, area=area, sizeunit=sizeunit)
         ui.start()
         
         while self.gameengine.update():
