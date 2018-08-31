@@ -1,21 +1,23 @@
 import numpy as np 
 import copy
+import time
 
 class Point:
-    def __init__(self, position, velocity, bounds, r0=0.1):
+    def __init__(self, position, velocity, bounds, r0=0.2):
         self.position = position
         self.velocity = velocity
         self.bounds = bounds
+        self.r0 = r0
 
     def update_position(self, diff_position):
-        self.position += diff_position
+        self.position = self.position + diff_position
 
     def update(self, dt):
         self.position += self.velocity*dt
-        return self.is_dead()
+        return not self.is_dead()
 
     def get_position(self):
-        return self.position
+        return np.copy(self.position)
 
     def get_velocity(self):
         return self.velocity
@@ -30,13 +32,19 @@ class Point:
     def touch(self, target_point):
         x, y = target_point.get_position()
         x0, y0 = self.position
-        if (x-x0)**2 + (y-y0)**2 < r0**2:
+        if (x-x0)**2 + (y-y0)**2 < self.r0**2:
             return True
         return False
 
 class PointCrowd:
     def __init__(self, n_points, target_point, bounds, velocity_max):
         self.points = list()
+
+        self.n_points = n_points
+        self.target_point = target_point
+        self.bounds = bounds
+        self.velocity_max = velocity_max
+
         target_position = target_point.get_position()
 
         # bounds: [x_min, x_max, y_min, y_max]
@@ -63,18 +71,21 @@ class PointCrowd:
 
     def update(self, dt):
         n_lives = 0
+        n_points = len(self.points)
         for i in range(n_points):
             if self.points[i].update(dt):
                 n_lives += 1
         return n_lives
 
     def get_positions(self):
+        n_points = len(self.points)
         positions = np.zeros((n_points, 2))
         for i in range(n_points):
             positions[i] = self.points[i].get_position()
         return positions
 
     def touch(self, target_point):
+        n_points = len(self.points)
         for i in range(n_points):
             flag = self.points[i].touch(target_point)
             if flag:
@@ -85,7 +96,7 @@ class GameEngine:
     def __init__(self, n_points, bounds, velocity_max, dt, 
         target_position, target_speed,
         n_crowds=3, timestep_intervals=10,
-        is_selfplay=False, is_computer=False
+        is_selfplay=False, is_computer=False, verbose=False
         ):
 
         self.n_points = n_points
@@ -107,10 +118,25 @@ class GameEngine:
         self.timestep_intervals = timestep_intervals
         self.last_emit_timestep = 0
 
+        self.score = 0
+        self.verbose = verbose
+
     def get_area(self, n_grid=50):
         area = np.zeros((n_grid, n_grid))
+        x_min, x_max, y_min, y_max = self.bounds
 
-        # Fill area
+        n_crowds = len(self.pointcrowds)
+        for i in range(n_crowds):
+            positions = self.pointcrowds[i].get_positions()
+            for k in range(len(positions)):
+                x, y = positions[k]
+                m, n = int((x-x_min)/(x_max-x_min)*(n_grid-1)), int((y-y_min)/(y_max-y_min)*(n_grid-1)) 
+                if (m>=0) and (m<n_grid) and (n>=0) and (n<n_grid):
+                    area[m, n] = -1
+
+        x, y = self.target_point.get_position()
+        m, n = int((x-x_min)/(x_max-x_min)*(n_grid-1)), int((y-y_min)/(y_max-y_min)*(n_grid-1)) 
+        area[m, n] = 1
 
         return area
 
@@ -126,6 +152,9 @@ class GameEngine:
             velocity_max=self.velocity_max
         )
         self.pointcrowds.append(pointcrowd)
+
+        if self.verbose:
+            print("Emitting new point crowd and current number of crowd is [{0}]".format(len(self.pointcrowds)))
 
     def clone(self):
         pass
@@ -168,11 +197,6 @@ class GameEngine:
             if (self.pointcrowds[i].touch(self.target_point)):
                 flag = True
 
-        # Emit points
-        if (len(self.pointcrowds) < self.n_crowds) and (last_emit_timestep >= self.timestep_intervals):
-            self.emit_points()
-        last_emit_timestep += 1
-
         # Remove points crowd
         pointcrowds = list()
         for i in range(n_crowds):
@@ -180,21 +204,41 @@ class GameEngine:
                 pointcrowds.append(self.pointcrowds[i])
         self.pointcrowds = pointcrowds
 
+        # Emit points
+        if (len(self.pointcrowds) < self.n_crowds) and (self.last_emit_timestep >= self.timestep_intervals):
+            
+            self.emit_points()
+            self.last_emit_timestep = 0
+        self.last_emit_timestep += 1
+
+        if not flag:
+            self.score += 1
+
+        # if self.verbose:
+        #     count = np.sum(lives)
+        #     print("The number of living pointcrowd is [{0}]".format(count))
+
         return flag
+
+    def get_score(self):
+        return self.score
 
 class BulletScreen:
     '''
     Bullet Screen Game for Human
     '''
-    def __init__(self):
+    def __init__(self, verbose=False):
         n_points=10
-        bounds = [0, 10, 0, 10] # bounds: [x_min, x_max, y_min, y_max]
-        velocity_max = 0.5 
-        dt = 0.1 
+        bounds = [-5, 5, -5, 5] # bounds: [x_min, x_max, y_min, y_max]
+        velocity_max = 2.0
+        dt = 0.1
         target_position = np.array([0,0]) 
-        target_speed = 0.1
+        target_speed = 2.0
         n_crowds=3
         timestep_intervals=10
+
+        self.verbose = verbose
+        self.dt = dt
 
         self.gameengine = GameEngine(
             n_points=n_points, 
@@ -204,7 +248,8 @@ class BulletScreen:
             target_position=target_position, 
             target_speed=target_speed,
             n_crowds=n_crowds, 
-            timestep_intervals=timestep_intervals
+            timestep_intervals=timestep_intervals,
+            verbose=self.verbose
         )
 
     def pressaction(self, code):
@@ -214,7 +259,7 @@ class BulletScreen:
         #   [0, 0, 1, 0, 0]: right
         #   [0, 0, 0, 1, 0]: up
         #   [0, 0, 0, 0, 1]: down
-        control_code = np.zero(5)
+        control_code = np.zeros(5)
         control_code[code] = 1
         self.gameengine.play(control_code=control_code)
 
@@ -223,17 +268,20 @@ class BulletScreen:
 
         self.gameengine.init()
 
-        sizeunit = 30
-        area = self.gameengine.get_area()
+        n_grid = 31
+        sizeunit = 20
+        area = self.gameengine.get_area(n_grid)
         ui = UI(pressaction=self.pressaction, area=area, sizeunit=sizeunit)
+
+        #ui.setDaemon(True)
         ui.start()
+
+        for i in range(20):
+            self.gameengine.update()
+        ui.setarea(area=self.gameengine.get_area(n_grid))
         
-        while self.gameengine.update():
-            ui.setarea(area=self.gameengine.getarea())
-
-        ui.gameend(self.gameengine.getscore())
-
-if __name__=='__main__':
-    # Just for debugging
-    bulletscreen = BulletScreen()
-    bulletscreen.start()
+        # while not self.gameengine.update():
+        #     time.sleep(self.dt)
+        #     ui.setarea(area=self.gameengine.get_area(n_grid))
+        
+        # ui.gameend(self.gameengine.get_score())

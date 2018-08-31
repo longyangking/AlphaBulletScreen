@@ -6,23 +6,27 @@ import sys
 from PyQt5.QtWidgets import QApplication
 
 class UI(threading.Thread):
-    def __init__(self,pressaction,area,sizeunit=30):
+    def __init__(self,pressaction,area,sizeunit=10):
         threading.Thread.__init__(self)
-        self.UI = None
+        
         self.app = None
-
         self.area = area
         self.sizeunit = sizeunit
         self.pressaction = pressaction
+
+        self.UI = None   
     
     def run(self):
-        print('Init UI...')
         self.app = QApplication(sys.argv)
         self.UI = nativeUI.nativeUI(pressaction=self.pressaction,area=self.area,sizeunit=self.sizeunit)
         self.app.exec_()
 
     def setarea(self,area):
-        return self.UI.setarea(area=area)
+        while self.UI is None:
+            pass
+        self.UI.setarea(area=area)
     
     def gameend(self,score):
+        while self.UI is None:
+            pass
         self.UI.gameend(score=score)

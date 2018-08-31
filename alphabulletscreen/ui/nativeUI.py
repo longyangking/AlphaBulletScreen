@@ -30,7 +30,8 @@ class nativeUI(QWidget):
         self.setGeometry((screen.width()-size.width())/2, 
                         (screen.height()-size.height())/2,
                         Nx*self.sizeunit, Ny*self.sizeunit)
-        self.setWindowTitle("Retro Snake")
+        self.setWindowTitle("Bullet Screen")
+        self.setWindowIcon(QIcon('./ui/icon.png'))
 
         # set Background color
         palette =  QPalette()
@@ -88,9 +89,9 @@ class nativeUI(QWidget):
         qp.setPen(0)
         for i in range(Nx):
             for j in range(Ny):
-                if self.area[i,j] == 1:
+                if self.area[i,j] == -1:
                     qp.setBrush(QColor(0, 0, 0))
-                elif self.area[i,j] == -1:
+                elif self.area[i,j] == 1:
                     qp.setBrush(QColor(255, 0, 0))
                 if self.area[i,j] != 0:
                     qp.drawRect(i*self.ax, j*self.ay ,self.ax,self.ay)
@@ -104,13 +105,13 @@ class nativeUI(QWidget):
         if e.key() == Qt.Key_Escape:
             self.close()
         if e.key() == Qt.Key_Left:
-            mode = 1
-        elif e.key() == Qt.Key_Right:
-            mode = 0
-        elif e.key() == Qt.Key_Up:
-            mode = 3
-        elif e.key() == Qt.Key_Down:
             mode = 2
+        elif e.key() == Qt.Key_Right:
+            mode = 1
+        elif e.key() == Qt.Key_Up:
+            mode = 4
+        elif e.key() == Qt.Key_Down:
+            mode = 3
 
         if mode != -1:
             self.playsignal.emit(mode)
