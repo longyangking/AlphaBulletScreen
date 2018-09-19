@@ -1,6 +1,6 @@
 import numpy as np 
 import time
-from bulletscreen import Point, PointCrowd
+from bulletscreen import GameEnigne
 from ai import AI
 
 class SelfplayEngine:
@@ -10,7 +10,7 @@ class SelfplayEngine:
         self.verbose = verbose
 
         # Train data
-        self.boards = list()
+        self.areas = list()
         self.states = list()
         self.actions = list()
         self.values = list()
@@ -19,11 +19,74 @@ class SelfplayEngine:
         return self.states[-1]
 
     def update_states(self):
+        '''
+        Update stored states
+        '''
+        state = np.zeros((self.Nx, self.Ny, self.channel))
+        n_areas = len(self.areas)
+        for i in range(self.channel):
+            if i+1 <= n_areas:
+                state[:,:,-(i+1)] = self.areas[-(i+1)]
+
+        self.states.append(state)
         
-
     def start(self):
+        '''
+        Main process for self-play engine
+        '''
+        n_grid = self.state_shape[0]
 
-        return 
+        n_points=10
+        bounds = [-5, 5, -5, 5] # bounds: [x_min, x_max, y_min, y_max]
+        velocity_max = 2.0
+        dt = 0.1
+        target_position = np.array([0,0]) 
+        target_speed = 2.0
+        n_crowds=3
+        timestep_intervals=10
+
+        gameengine = GameEngine(
+            n_points=n_points, 
+            bounds=bounds, 
+            velocity_max=velocity_max, 
+            dt=dt, 
+            target_position=target_position, 
+            target_speed=target_speed,
+            n_crowds=n_crowds, 
+            timestep_intervals=timestep_intervals,
+            verbose=False   # Inner process, not shown
+        )
+
+        gameengine.init()
+        # area = gameengine.get_area(n_grid)
+        # self.areas.append(area)
+
+        while gameengine.update():
+            area = gameengine.get_area(n_grid)
+            self.areas.append(area)
+            self.update_states()
+
+            action, action_values = self.ai.evaluate_function(self.get_state())
+            gameengine.play(control_code=action)
+
+            self.actions.append(action)
+            score = gameengine.get_score()
+            self.values.append(score)
+
+        GAMMA = 0.9
+        action_values = list()
+        for i in range(len(self.actions)-1):
+            action_value = np.zeros(5)
+            _, action_values_pred = self.ai.evaluate_function(self.states[i+1])
+            action_value[self.actions[i]] = self.values[i] + GAMMA*np.max(action_values_pred)
+            action_values.append(action_value)
+
+        # Terminal action, which would not gain the incomings in the future
+        action_value = np.zeros(5)
+        action_value[self.actions[-1]] = self.values[-1]
+        action_values.append(action_value)
+
+        return self.states, action_values
 
 class TrainAI:
     def __init__(self, state_shape, ai=None, verbose=False):
@@ -43,8 +106,7 @@ class TrainAI:
 
     def get_selfplay_data(self, n_rounds):
         states = list()
-        actions = list()
-        values = list()
+        action_values = list()
 
         if self.verbose:
             starttime = time.time()
@@ -59,18 +121,20 @@ class TrainAI:
                 verbose=self.verbose
             )
 
-            _states, _actions, _values = engine.start()
+            _states, _action_values = engine.start()
             for i in range(_actions):
                 states.append(_states[i])
-                actions.append(_actions[i])
-                values.append(_values[i])
+                action_values.append(_action_values[i])
         
         if self.verbose:
             endtime = time.time()
             print("End of self-play process with data size [{0}] and cost time [{1:.1f}s].".format(
-                len(values),  (endtime - starttime)))
+                len(action_values),  (endtime - starttime)))
 
-        return states, actions, values
+        states = np.array(states)
+        action_values = np.array(action_values)
+
+        return states, action_values
 
     def update_ai(self, dataset):
         if self.verbose:

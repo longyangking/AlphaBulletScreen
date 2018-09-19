@@ -11,12 +11,12 @@ import numpy as np
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Only error will be shown
 
-def softmax_cross_entropy_with_logits(y_true, y_pred):
-    '''
-    Softmax Cross Entropy Function with logits
-    '''
-    loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=y_true, logits=y_pred)
-    return loss
+# def softmax_cross_entropy_with_logits(y_true, y_pred):
+#     '''
+#     Softmax Cross Entropy Function with logits
+#     '''
+#     loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=y_true, logits=y_pred)
+#     return loss
 
 class NeuralNetwork:
     def __init__(self, 
@@ -46,13 +46,12 @@ class NeuralNetwork:
             for h in self.network_structure[1:]:
                 x = self.__res_block(x, h['filters'], h['kernel_size'])
         
-        action = self.__action_block(x)
-        value = self.__value_block(x)
+        action_value = self.__action_value_block(x)
         
-        model = Model(inputs=state_tensor, outputs=[action, value])
-        model.compile(loss={'value': 'mse', 'action': softmax_cross_entropy_with_logits},
-			optimizer=Adam(self.learning_rate),	
-			loss_weights={'value': 0.5, 'action': 0.5}	
+        model = Model(inputs=state_tensor, outputs=action_value)
+        model.compile(
+            loss='mse',
+			optimizer=Adam(self.learning_rate)
 			)
 
         return model
@@ -88,37 +87,7 @@ class NeuralNetwork:
         out = LeakyReLU()(out)
         return out
 
-    def __value_block(self, x):
-        out = Conv2D(
-            filters = 32,
-            kernel_size = (3,3),
-            padding = 'same',
-            activation='linear',
-            kernel_regularizer = regularizers.l2(self.l2_const)
-        )(x)
-        out = BatchNormalization(axis=1)(out)
-        out = LeakyReLU()(out)
-
-        out = Flatten()(out)
-        out = Dense(
-            36,
-            use_bias=False,
-            activation='linear',
-            kernel_regularizer= regularizers.l2(self.l2_const)
-		)(out)
-        out = LeakyReLU()(out)
-
-        value = Dense(
-			1, 
-            use_bias=False,
-            activation='tanh',
-            kernel_regularizer=regularizers.l2(self.l2_const),
-            name = 'value'
-			)(out)
-
-        return value
-
-    def __action_block(self, x):
+    def __action_value_block(self, x):
         out = Conv2D(
             filters = 32,
             kernel_size = (3,3),
@@ -209,18 +178,18 @@ class AI:
         '''
         Update neural network
         '''
-        states, actions, values = dataset
+        states, action_values = dataset
         Xs = states
-        ys = [actions, values]
+        ys = action_values
         return self.nnet.update(Xs, ys)
 
     def train(self, dataset, epochs, batch_size):
         '''
         Train neural network
         '''
-        states, actions, values = dataset
+        states, action_values = dataset
         Xs = states
-        ys = [actions, values]
+        ys = action_values
         return self.nnet.fit(
             Xs, ys, 
             epochs=epochs, 
@@ -230,10 +199,11 @@ class AI:
         '''
         Evaluate status based on current state information
         '''
-        action_prob, value = self.nnet.predict(state)
-        return action_prob, value
+        action_value = self.nnet.predict(state)
+        action = np.argmax(action_value)
+        return action, action_value
 
     def play(self, state):
-        action_prob, value = self.nnet.predict(state)
-        action = np.argmax(action_prob)
+        action_value = self.nnet.predict(state)
+        action = np.argmax(action_value)
         return action

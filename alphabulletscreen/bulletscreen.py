@@ -94,9 +94,9 @@ class PointCrowd:
 
 class GameEngine:
     def __init__(self, n_points, bounds, velocity_max, dt, 
-        target_position, target_speed,
+        target_position, target_speed, n_grid,
         n_crowds=3, timestep_intervals=10,
-        is_selfplay=False, is_computer=False, verbose=False
+        verbose=False
         ):
 
         self.n_points = n_points
@@ -118,10 +118,12 @@ class GameEngine:
         self.timestep_intervals = timestep_intervals
         self.last_emit_timestep = 0
 
+        self.n_grid = n_grid
         self.score = 0
         self.verbose = verbose
 
-    def get_area(self, n_grid=50):
+    def get_area(self):
+        n_grid = self.n_grid
         area = np.zeros((n_grid, n_grid))
         x_min, x_max, y_min, y_max = self.bounds
 
@@ -154,13 +156,7 @@ class GameEngine:
         self.pointcrowds.append(pointcrowd)
 
         if self.verbose:
-            print("Emitting new point crowd and current number of crowd is [{0}]".format(len(self.pointcrowds)))
-
-    def clone(self):
-        pass
-
-    def get_state(self):
-        pass 
+            print("Emitting new point crowd and current number of crowd is [{0}]".format(len(self.pointcrowds))) 
 
     def play(self, control_code=[1,0,0,0,0]):
         # Control Code:
@@ -227,7 +223,7 @@ class BulletScreen:
     '''
     Bullet Screen Game for Human
     '''
-    def __init__(self, verbose=False):
+    def __init__(self, state_shape, ai=None, verbose=False):
         n_points=10
         bounds = [-5, 5, -5, 5] # bounds: [x_min, x_max, y_min, y_max]
         velocity_max = 2.0
@@ -236,6 +232,10 @@ class BulletScreen:
         target_speed = 2.0
         n_crowds=3
         timestep_intervals=10
+
+        self.state_shape = state_shape
+        self.n_grid = state_shape[0]
+        self.ai = ai
 
         self.verbose = verbose
         self.dt = dt
@@ -248,6 +248,7 @@ class BulletScreen:
             target_position=target_position, 
             target_speed=target_speed,
             n_crowds=n_crowds, 
+            n_grid=self.n_grid,
             timestep_intervals=timestep_intervals,
             verbose=self.verbose
         )
@@ -268,20 +269,34 @@ class BulletScreen:
 
         self.gameengine.init()
 
-        n_grid = 31
+        #n_grid = self.n_grid
         sizeunit = 20
-        area = self.gameengine.get_area(n_grid)
+        area = self.gameengine.get_area()
         ui = UI(pressaction=self.pressaction, area=area, sizeunit=sizeunit)
 
         #ui.setDaemon(True)
         ui.start()
 
-        for i in range(20):
-            self.gameengine.update()
-        ui.setarea(area=self.gameengine.get_area(n_grid))
+        # for i in range(20):
+        #     self.gameengine.update()
+        # ui.setarea(area=self.gameengine.get_area(n_grid))
+
+        if self.verbose:
+            count = 0
         
-        # while not self.gameengine.update():
-        #     time.sleep(self.dt)
-        #     ui.setarea(area=self.gameengine.get_area(n_grid))
+        while not self.gameengine.update():
+            if self.verbose:
+                count += 1
+
+            time.sleep(self.dt)
+            ui.setarea(area=self.gameengine.get_area())
         
-        # ui.gameend(self.gameengine.get_score())
+        ui.gameend(self.gameengine.get_score())
+
+        if self.verbose:
+            print("Game end with steps [{0}] and score [{1}].".format(count, self.gameengine.get_score()))
+
+    def start_ai(self):
+        pass
+
+        # TODO Play game by AI

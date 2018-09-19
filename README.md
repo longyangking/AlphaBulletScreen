@@ -6,6 +6,8 @@ Play Bullet Screen Game with Artificial Intelligence
 
 ![](./pics/bulletscreen.png)
 
++ Deep reinforcement learning[1]
+
 ## How to use 
 + Play BulletScreen Game by yourself
 
@@ -19,3 +21,6 @@ Play Bullet Screen Game with Artificial Intelligence
 ## E-mail
 longyang_123@yeah.net  
 You're most welcome to contact with me to discuss any detail about this project
+
+## Reference
+[1]Mnih, Volodymyr, et al. "Human-level control through deep reinforcement learning." Nature 518.7540 (2015): 529.
