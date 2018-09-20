@@ -30,3 +30,27 @@ class UI(threading.Thread):
         while self.UI is None:
             pass
         self.UI.gameend(score=score)
+
+class Viewer(threading.Thread):
+    def __init__(self, area,sizeunit=10):
+        threading.Thread.__init__(self)
+        
+        self.app = None
+        self.area = area
+        self.sizeunit = sizeunit
+        self.UI = None   
+    
+    def run(self):
+        self.app = QApplication(sys.argv)
+        self.UI = nativeUI.ViewUI(area=self.area,sizeunit=self.sizeunit)
+        self.app.exec_()
+
+    def setarea(self,area):
+        while self.UI is None:
+            pass
+        self.UI.setarea(area=area)
+    
+    def gameend(self,score):
+        while self.UI is None:
+            pass
+        self.UI.gameend(score=score)

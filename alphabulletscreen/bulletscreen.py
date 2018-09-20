@@ -3,7 +3,7 @@ import copy
 import time
 
 class Point:
-    def __init__(self, position, velocity, bounds, r0=0.2):
+    def __init__(self, position, velocity, bounds, r0=0.25):
         self.position = position
         self.velocity = velocity
         self.bounds = bounds
@@ -11,6 +11,18 @@ class Point:
 
     def update_position(self, diff_position):
         self.position = self.position + diff_position
+
+    def target_position_recover(self):
+        x_min, x_max, y_min, y_max = self.bounds
+        x, y = self.position
+        if x > x_max: 
+            x = x_max
+        if x < x_min:
+            x = x_min
+        if y > y_max:
+            y = y_max
+        if y < y_min:
+            y = y_min
 
     def update(self, dt):
         self.position += self.velocity*dt
@@ -37,13 +49,14 @@ class Point:
         return False
 
 class PointCrowd:
-    def __init__(self, n_points, target_point, bounds, velocity_max):
+    def __init__(self, n_points, target_point, bounds, velocity_max, velocity_min):
         self.points = list()
 
         self.n_points = n_points
         self.target_point = target_point
         self.bounds = bounds
         self.velocity_max = velocity_max
+        self.velocity_min = velocity_min
 
         target_position = target_point.get_position()
 
@@ -65,7 +78,7 @@ class PointCrowd:
             position = latent_positions[index]
             direction = target_position - position
             direction = direction/np.sqrt(direction.dot(direction))
-            velocity = velocity_max*np.random.random()*direction
+            velocity = ((velocity_max-velocity_min)*np.random.random()+velocity_min)*direction
             point = Point(position=position, velocity=velocity, bounds=bounds)
             self.points.append(point)
 
@@ -93,7 +106,7 @@ class PointCrowd:
         return False
 
 class GameEngine:
-    def __init__(self, n_points, bounds, velocity_max, dt, 
+    def __init__(self, n_points, bounds, velocity_max, velocity_min, dt, 
         target_position, target_speed, n_grid,
         n_crowds=3, timestep_intervals=10,
         verbose=False
@@ -102,6 +115,7 @@ class GameEngine:
         self.n_points = n_points
         self.bounds = bounds
         self.velocity_max = velocity_max
+        self.velocity_min = velocity_min
 
         self.dt = dt
         self.target_position = target_position
@@ -110,7 +124,7 @@ class GameEngine:
         self.target_point = Point(
             position=self.target_position,
             velocity=[0,0],
-            bounds=None
+            bounds=self.bounds
         )
 
         self.pointcrowds = list()
@@ -137,6 +151,14 @@ class GameEngine:
                     area[m, n] = -1
 
         x, y = self.target_point.get_position()
+        if x < x_min:
+            x = x_min
+        if x > x_max:
+            x = x_max
+        if y < y_min:
+            y = y_min
+        if y > y_max:
+            y = y_max
         m, n = int((x-x_min)/(x_max-x_min)*(n_grid-1)), int((y-y_min)/(y_max-y_min)*(n_grid-1)) 
         area[m, n] = 1
 
@@ -151,7 +173,8 @@ class GameEngine:
             n_points=self.n_points, 
             target_point=self.target_point, 
             bounds=self.bounds, 
-            velocity_max=self.velocity_max
+            velocity_max=self.velocity_max,
+            velocity_min=self.velocity_min
         )
         self.pointcrowds.append(pointcrowd)
 
@@ -179,6 +202,7 @@ class GameEngine:
 
         diff_position = self.target_speed*self.dt*direction
         self.target_point.update_position(diff_position)
+        self.target_point.target_position_recover()
         flag = self.update()
 
         return flag
@@ -227,6 +251,7 @@ class BulletScreen:
         n_points=10
         bounds = [-5, 5, -5, 5] # bounds: [x_min, x_max, y_min, y_max]
         velocity_max = 2.0
+        velocity_min = 1.0
         dt = 0.1
         target_position = np.array([0,0]) 
         target_speed = 2.0
@@ -236,6 +261,8 @@ class BulletScreen:
         self.state_shape = state_shape
         self.n_grid = state_shape[0]
         self.ai = ai
+        self.areas = list()
+        self.states = list()
 
         self.verbose = verbose
         self.dt = dt
@@ -244,6 +271,7 @@ class BulletScreen:
             n_points=n_points, 
             bounds=bounds, 
             velocity_max=velocity_max, 
+            velocity_min=velocity_min,
             dt=dt, 
             target_position=target_position, 
             target_speed=target_speed,
@@ -252,6 +280,22 @@ class BulletScreen:
             timestep_intervals=timestep_intervals,
             verbose=self.verbose
         )
+
+    def get_state(self):
+        return self.states[-1]
+
+    def update_states(self):
+        '''
+        Update stored states
+        '''
+        Nx, Ny, channel = self.state_shape
+        state = np.zeros((Nx,Ny,channel))
+        n_areas = len(self.areas)
+        for i in range(channel):
+            if i+1 <= n_areas:
+                state[:,:,-(i+1)] = self.areas[-(i+1)]
+
+        self.states.append(state)
 
     def pressaction(self, code):
         # Control Code:
@@ -297,6 +341,39 @@ class BulletScreen:
             print("Game end with steps [{0}] and score [{1}].".format(count, self.gameengine.get_score()))
 
     def start_ai(self):
-        pass
+        if self.verbose:
+            print("Start to play game by AI model...")
 
-        # TODO Play game by AI
+        from ui import Viewer
+
+        self.gameengine.init()
+
+        sizeunit = 20
+        area = self.gameengine.get_area()
+        self.areas.append(area)
+        self.update_states()
+
+        viewer = Viewer(area=area, sizeunit=sizeunit)
+        viewer.start()
+        if self.verbose:
+            count = 0
+        
+        while not self.gameengine.update():
+            if self.verbose:
+                count += 1
+
+            time.sleep(self.dt)
+            area = self.gameengine.get_area()
+            self.areas.append(area)
+            self.update_states()
+            viewer.setarea(area=area)   # Update UI
+
+            action = self.ai.play(self.get_state())
+            control_code = np.zeros(5)
+            control_code[action] = 1
+            self.gameengine.play(control_code=control_code)
+        
+        viewer.gameend(self.gameengine.get_score())
+
+        if self.verbose:
+            print("Game end with steps [{0}] and score [{1}].".format(count, self.gameengine.get_score()))

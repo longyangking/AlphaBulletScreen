@@ -127,8 +127,8 @@ class NeuralNetwork:
 
     def predict(self, X):
         X = X.reshape(1, *self.input_shape)
-        action_prob, value = self.model.predict(X)
-        return action_prob[0], value[0]
+        action_value = self.model.predict(X)
+        return action_value
 
     def save_model(self, filename):
         self.model.save_weights(filename)

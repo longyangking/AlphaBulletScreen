@@ -1,12 +1,12 @@
 import numpy as np 
 import time
-from bulletscreen import GameEnigne
+from bulletscreen import GameEngine
 from ai import AI
 
 class SelfplayEngine:
     def __init__(self, ai, verbose):
         self.ai = ai
-        self.state_shape = state_shape
+        self.state_shape = ai.get_state_shape()
         self.verbose = verbose
 
         # Train data
@@ -22,9 +22,10 @@ class SelfplayEngine:
         '''
         Update stored states
         '''
-        state = np.zeros((self.Nx, self.Ny, self.channel))
+        Nx, Ny, channel = self.state_shape
+        state = np.zeros((Nx,Ny,channel))
         n_areas = len(self.areas)
-        for i in range(self.channel):
+        for i in range(channel):
             if i+1 <= n_areas:
                 state[:,:,-(i+1)] = self.areas[-(i+1)]
 
@@ -39,6 +40,7 @@ class SelfplayEngine:
         n_points=10
         bounds = [-5, 5, -5, 5] # bounds: [x_min, x_max, y_min, y_max]
         velocity_max = 2.0
+        velocity_min = 1.0
         dt = 0.1
         target_position = np.array([0,0]) 
         target_speed = 2.0
@@ -49,11 +51,13 @@ class SelfplayEngine:
             n_points=n_points, 
             bounds=bounds, 
             velocity_max=velocity_max, 
+            velocity_min=velocity_min,
             dt=dt, 
             target_position=target_position, 
             target_speed=target_speed,
             n_crowds=n_crowds, 
             timestep_intervals=timestep_intervals,
+            n_grid=n_grid,
             verbose=False   # Inner process, not shown
         )
 
@@ -61,13 +65,16 @@ class SelfplayEngine:
         # area = gameengine.get_area(n_grid)
         # self.areas.append(area)
 
-        while gameengine.update():
-            area = gameengine.get_area(n_grid)
+        while not gameengine.update():
+            area = gameengine.get_area()
             self.areas.append(area)
             self.update_states()
 
             action, action_values = self.ai.evaluate_function(self.get_state())
-            gameengine.play(control_code=action)
+
+            control_code = np.zeros(5)
+            control_code[action] = 1
+            gameengine.play(control_code=control_code)
 
             self.actions.append(action)
             score = gameengine.get_score()
@@ -122,7 +129,7 @@ class TrainAI:
             )
 
             _states, _action_values = engine.start()
-            for i in range(_actions):
+            for i in range(len(_action_values)):
                 states.append(_states[i])
                 action_values.append(_action_values[i])
         
@@ -152,8 +159,8 @@ class TrainAI:
         Main training process
         '''
         n_epochs = 1000
-        n_rounds = 20
-        n_checkpoints = 30
+        n_rounds = 30
+        n_checkpoints = 10
 
         if self.verbose:
             print("Train AI model with epochs: [{0}]".format(n_epochs))

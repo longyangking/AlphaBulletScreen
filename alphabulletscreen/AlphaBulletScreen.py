@@ -34,7 +34,7 @@ if __name__=='__main__':
         from ai import AI
         from train import TrainAI
 
-        ai = AI(state_shape=__default_state_shape__, output_dim=5, verbose=verbose)
+        ai = AI(state_shape=__default_state_shape__, action_dim=5, verbose=verbose)
         if verbose:
             print("loading latest model: [{0}] ...".format(__filename__),end="")
         ai.load_nnet(__filename__)
@@ -86,7 +86,7 @@ if __name__=='__main__':
             print("load OK!")
 
         print("Play BulletScreen game. Please close game in terminal after closing window (i.e, Press Ctrl+C).")
-        bulletscreen = BulletScreenAI(state_shape=__default_state_shape__, player=ai, verbose=verbose)
+        bulletscreen = BulletScreen(state_shape=__default_state_shape__, ai=ai, verbose=verbose)
         bulletscreen.start_ai()
 
     if args.play:
