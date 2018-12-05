@@ -147,7 +147,7 @@ class TrainAI:
         if self.verbose:
             print("Start to update the network of AI model...")
 
-        history = self.ai.train(dataset, epochs=30, batch_size=32)
+        history = self.ai.train(dataset, epochs=3, batch_size=32)
 
         if self.verbose:
             print("End of updating with final loss [{0:.4f}]".format(history.history['loss'][-1]))
@@ -159,8 +159,8 @@ class TrainAI:
         Main training process
         '''
         n_epochs = 1000
-        n_rounds = 30
-        n_checkpoints = 10
+        n_rounds = 10
+        n_checkpoints = 3
 
         if self.verbose:
             print("Train AI model with epochs: [{0}]".format(n_epochs))

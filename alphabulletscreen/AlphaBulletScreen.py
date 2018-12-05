@@ -18,7 +18,7 @@ if __name__=='__main__':
     parser.add_argument("--retrain", action='store_true', default=False, help="Re-Train AI")
     parser.add_argument("--train",  action='store_true', default=False, help="Train AI")
     parser.add_argument("--verbose", action='store_true', default=False, help="Verbose")
-    parser.add_argument("--playbyai", action='store_true', default=False, help="Play by AI")
+    parser.add_argument("--playai", action='store_true', default=False, help="Play by AI")
     parser.add_argument("--play", action='store_true', default=False, help="Play by human")
 
     args = parser.parse_args()
@@ -69,7 +69,7 @@ if __name__=='__main__':
         if verbose:
             print("The latest AI model is saved as [{0}]".format(__filename__))
 
-    if args.playbyai:
+    if args.playai:
         if verbose:
             print("Start to play the game by the AI model...")
 

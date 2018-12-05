@@ -31,7 +31,8 @@ Play Bullet Screen Game with Artificial Intelligence
         cd alphabulletscreen
         python alphabulletscreen.py --playbyai --verbose
 
-The option "--verbose" is for debugging purpose
+The option "--verbose" is for debugging purpose  
+Press key `left`,`right`,`up` and `down` to play the game
 
 ## E-mail
 longyang_123@yeah.net  

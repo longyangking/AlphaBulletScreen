@@ -44,7 +44,7 @@ class Point:
     def touch(self, target_point):
         x, y = target_point.get_position()
         x0, y0 = self.position
-        if (x-x0)**2 + (y-y0)**2 < self.r0**2:
+        if (x-x0)**2 + (y-y0)**2 < (2*self.r0)**2:
             return True
         return False
 
